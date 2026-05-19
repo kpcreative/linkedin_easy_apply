@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Get Started</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #0f0f13;
+      --surface:      #16161d;
+      --accent:       #7c6af7;
+      --accent-hover: #9d8fff;
+      --text:         #f0effe;
+      --text-muted:   #8b8a9e;
+      --border:       #2e2d3d;
+      --border-focus: #7c6af7;
+      --error:        #f06a6a;
+      --success:      #6af7b0;
+      --glow:         rgba(124,106,247,0.18);
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      overflow-x: hidden; /* prevent horizontal scroll during slide transitions */
+    }
+
+    /* ─── Progress Bar ──────────────────────────────────────── */
+    #progress-track {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--border);
+      z-index: 10;
+    }
+    #progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #b06af7);
+      width: 0%;
+      transition: width 400ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* ─── Step Counter ──────────────────────────────────────── */
+    #step-counter {
+      position: fixed;
+      top: 20px; right: 24px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 300ms;
+    }
+    #step-counter.visible { opacity: 1; }
+
+    /* ─── Back Button ───────────────────────────────────────── */
+    #back-btn {
+      position: fixed;
+      top: 14px; left: 20px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      font-family: var(--font);
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 300ms, color 150ms;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 6px;
+    }
+    #back-btn:hover { color: var(--text); }
+    #back-btn.visible { opacity: 1; }
+
+    /* ─── Main Container ────────────────────────────────────── */
+    #app {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      position: relative;
+    }
+
+    /* ─── Question Card ─────────────────────────────────────── */
+    #question-card {
+      width: 100%;
+      max-width: 560px;
+      transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1),
+                  opacity  320ms ease;
+    }
+    #question-card.slide-in        { transform: translateX(0);     opacity: 1; }
+    #question-card.slide-out-left  { transform: translateX(-56px); opacity: 0; }
+    #question-card.slide-in-right  { transform: translateX(56px);  opacity: 0; transition: none; }
+    /* Back navigation: exit right, enter from left */
+    #question-card.slide-out-right { transform: translateX(56px);  opacity: 0; }
+    #question-card.slide-in-left   { transform: translateX(-56px); opacity: 0; transition: none; }
+
+    /* ─── Question Label ────────────────────────────────────── */
+    #question-label {
+      font-size: clamp(22px, 4vw, 32px);
+      font-weight: 600;
+      line-height: 1.25;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+    #question-hint {
+      font-size: 15px;
+      color: var(--text-muted);
+      margin-bottom: 28px;
+      min-height: 22px;
+    }
+
+    /* ─── Input Wrapper ─────────────────────────────────────── */
+    #input-wrapper { position: relative; margin-bottom: 8px; }
+
+    #input-wrapper.shake {
+      animation: shake 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+    }
+
+    /* ─── Text / Tel Input ──────────────────────────────────── */
+    .q-input {
+      width: 100%;
+      height: 56px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 20px;
+      padding: 0 18px;
+      outline: none;
+      transition: border-color 150ms, box-shadow 150ms;
+      -webkit-appearance: none;
+    }
+    .q-input:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3.5px var(--glow);
+    }
+    .q-input::placeholder { color: var(--text-muted); opacity: 0.6; }
+
+    /* ─── Textarea ──────────────────────────────────────────── */
+    .q-textarea {
+      width: 100%;
+      min-height: 130px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 17px;
+      padding: 16px 18px;
+      outline: none;
+      resize: vertical;
+      transition: border-color 150ms, box-shadow 150ms;
+      line-height: 1.6;
+    }
+    .q-textarea:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3.5px var(--glow);
+    }
+    .q-textarea::placeholder { color: var(--text-muted); opacity: 0.6; }
+
+    /* ─── Select ────────────────────────────────────────────── */
+    .q-select {
+      width: 100%;
+      height: 56px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 18px;
+      padding: 0 18px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 150ms, box-shadow 150ms;
+      -webkit-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b8a9e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+    }
+    .q-select:focus {
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3.5px var(--glow);
+    }
+    .q-select option { background: #1e1e2a; }
+
+    /* ─── Radio / Checkbox Option List ─────────────────────── */
+    .option-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .option-list.grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .option-item {
+      position: relative;
+    }
+    .option-item input[type="radio"],
+    .option-item input[type="checkbox"] {
+      position: absolute;
+      clip: rect(0,0,0,0);
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+    }
+    .option-label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      cursor: pointer;
+      font-size: 16px;
+      color: var(--text-muted);
+      transition: border-color 150ms, background 150ms, color 150ms;
+      user-select: none;
+    }
+    .option-label:hover {
+      border-color: var(--accent);
+      color: var(--text);
+      background: rgba(124,106,247,0.06);
+    }
+    .option-item input:checked + .option-label {
+      border-color: var(--accent);
+      background: rgba(124,106,247,0.12);
+      color: var(--text);
+    }
+    .option-indicator {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      flex-shrink: 0;
+      transition: border-color 150ms, background 150ms;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .option-item input:checked + .option-label .option-indicator {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .option-indicator::after {
+      content: '';
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #fff;
+      opacity: 0;
+      transition: opacity 150ms;
+    }
+    .option-item input:checked + .option-label .option-indicator::after { opacity: 1; }
+
+    /* checkbox indicator — square */
+    .option-item.checkbox-item .option-indicator {
+      border-radius: 5px;
+    }
+    .option-item.checkbox-item input:checked + .option-label .option-indicator::after {
+      width: 10px;
+      height: 6px;
+      border-radius: 0;
+      background: none;
+      border-bottom: 2px solid #fff;
+      border-left: 2px solid #fff;
+      transform: rotate(-45deg) translateY(-1px);
+      opacity: 1;
+    }
+
+    /* ─── Error Message ─────────────────────────────────────── */
+    #error-msg {
+      font-size: 13px;
+      color: var(--error);
+      min-height: 20px;
+      margin-bottom: 16px;
+      margin-top: 8px;
+      opacity: 0;
+      transition: opacity 200ms;
+    }
+    #error-msg.visible { opacity: 1; }
+
+    /* ─── Continue Button ───────────────────────────────────── */
+    #continue-btn {
+      width: 100%;
+      height: 52px;
+      background: var(--accent);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-family: var(--font);
+      font-size: 16px;
+      font-weight: 500;
+      letter-spacing: 0.4px;
+      cursor: pointer;
+      transition: background 150ms, transform 100ms, box-shadow 150ms;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    #continue-btn:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(124,106,247,0.35);
+    }
+    #continue-btn:active,
+    #continue-btn.pressed {
+      transform: scale(0.97);
+      box-shadow: none;
+    }
+    #continue-btn.hidden { display: none; }
+
+    /* ─── Keyboard Hint ─────────────────────────────────────── */
+    #keyboard-hint {
+      margin-top: 12px;
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+    #keyboard-hint.hidden { display: none; }
+
+    /* ─── Summary Screen ────────────────────────────────────── */
+    #summary-screen {
+      width: 100%;
+      max-width: 600px;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    #summary-screen.active {
+      display: flex;
+    }
+
+    .checkmark-wrap {
+      margin-bottom: 28px;
+    }
+    .checkmark-circle {
+      fill: none;
+      stroke: var(--success);
+      stroke-width: 2.5;
+      stroke-dasharray: 166;
+      stroke-dashoffset: 166;
+      stroke-linecap: round;
+      animation: draw-circle 600ms cubic-bezier(0.65, 0, 0.45, 1) 100ms forwards;
+    }
+    .checkmark-check {
+      fill: none;
+      stroke: var(--success);
+      stroke-width: 2.5;
+      stroke-dasharray: 48;
+      stroke-dashoffset: 48;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      animation: draw-check 400ms cubic-bezier(0.65, 0, 0.45, 1) 650ms forwards;
+    }
+
+    #summary-heading {
+      font-size: clamp(24px, 4vw, 34px);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    #summary-subtext {
+      font-size: 16px;
+      color: var(--text-muted);
+      margin-bottom: 36px;
+      line-height: 1.6;
+    }
+
+    .summary-grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      max-height: 45vh;
+      overflow-y: auto;
+      padding-right: 4px;
+      text-align: left;
+      margin-bottom: 28px;
+    }
+    .summary-grid::-webkit-scrollbar { width: 4px; }
+    .summary-grid::-webkit-scrollbar-track { background: transparent; }
+    .summary-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .summary-item {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .summary-item-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+    .summary-item-value {
+      font-size: 14px;
+      color: var(--text);
+      word-break: break-word;
+      line-height: 1.5;
+    }
+    .summary-item.full-width { grid-column: 1 / -1; }
+
+    .summary-actions {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+    }
+    .btn-download {
+      flex: 1;
+      height: 48px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 150ms, background 150ms;
+    }
+    .btn-download:hover {
+      border-color: var(--accent);
+      background: rgba(124,106,247,0.08);
+    }
+    .btn-restart {
+      flex: 1;
+      height: 48px;
+      background: var(--accent);
+      border: none;
+      border-radius: 10px;
+      color: #fff;
+      font-family: var(--font);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 150ms;
+    }
+    .btn-restart:hover { background: var(--accent-hover); }
+
+    /* ─── Animations ────────────────────────────────────────── */
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      15%      { transform: translateX(-9px); }
+      45%      { transform: translateX(9px); }
+      75%      { transform: translateX(-5px); }
+      90%      { transform: translateX(5px); }
+    }
+    @keyframes draw-circle {
+      to { stroke-dashoffset: 0; }
+    }
+    @keyframes draw-check {
+      to { stroke-dashoffset: 0; }
+    }
+
+    /* ─── Mobile ────────────────────────────────────────────── */
+    @media (max-width: 480px) {
+      .summary-grid  { grid-template-columns: 1fr; }
+      .option-list.grid-2 { grid-template-columns: 1fr; }
+      .summary-actions { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Progress -->
+  <div id="progress-track"><div id="progress-fill"></div></div>
+  <div id="step-counter"></div>
+  <button id="back-btn" aria-label="Go back">&#8592; Back</button>
+
+  <!-- Main -->
+  <div id="app">
+
+    <!-- Question Card -->
+    <div id="question-card" class="slide-in">
+      <div id="question-label"></div>
+      <div id="question-hint"></div>
+      <div id="input-wrapper"></div>
+      <div id="error-msg" role="alert"></div>
+      <button id="continue-btn" type="button">
+        Continue
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </button>
+      <div id="keyboard-hint"></div>
+    </div>
+
+    <!-- Summary Screen -->
+    <div id="summary-screen" role="main" aria-live="polite">
+      <div class="checkmark-wrap">
+        <svg width="68" height="68" viewBox="0 0 52 52">
+          <circle class="checkmark-circle" cx="26" cy="26" r="24"/>
+          <polyline class="checkmark-check" points="14,26 22,34 38,18"/>
+        </svg>
+      </div>
+      <div id="summary-heading"></div>
+      <div id="summary-subtext">Here's a summary of what you shared with us.</div>
+      <div class="summary-grid" id="summary-grid"></div>
+      <div class="summary-actions">
+        <button class="btn-download" id="download-btn">&#8659; Download JSON</button>
+        <button class="btn-restart" id="restart-btn">Start Over</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+  (function () {
+    'use strict';
+
+    /* ── Questions Definition ───────────────────────────────── */
+    const QUESTIONS = [
+      {
+        id: 'first_name',
+        label: "What's your first name?",
+        hint: 'Press Enter ↵ to continue',
+        type: 'text',
+        placeholder: 'e.g. Sarah',
+        autocomplete: 'given-name',
+        required: true,
+        validate: v => v.trim().length >= 1,
+        errorMsg: 'Please enter your first name.'
+      },
+      {
+        id: 'last_name',
+        label: "And your last name?",
+        hint: 'Press Enter ↵ to continue',
+        type: 'text',
+        placeholder: 'e.g. Johnson',
+        autocomplete: 'family-name',
+        required: true,
+        validate: v => v.trim().length >= 1,
+        errorMsg: 'Please enter your last name.'
+      },
+      {
+        id: 'phone',
+        label: "Best phone number to reach you?",
+        hint: 'Press Enter ↵ to continue',
+        type: 'tel',
+        placeholder: 'e.g. (555) 867-5309',
+        autocomplete: 'tel',
+        required: true,
+        validate: v => /^[\d\s\(\)\-\+\.]{7,}$/.test(v.trim()),
+        errorMsg: 'Please enter a valid phone number (at least 7 digits).'
+      },
+      {
+        id: 'business_name',
+        label: "What's your business called?",
+        hint: 'Press Enter ↵ to continue',
+        type: 'text',
+        placeholder: 'e.g. Acme Corp',
+        autocomplete: 'organization',
+        required: true,
+        validate: v => v.trim().length >= 1,
+        errorMsg: 'Please enter your business name.'
+      },
+      {
+        id: 'industry',
+        label: "What industry are you in?",
+        hint: 'Select an option, then click Continue',
+        type: 'select',
+        placeholder: 'Choose your industry…',
+        options: [
+          'Technology & Software',
+          'Healthcare & Wellness',
+          'Finance & Insurance',
+          'Retail & E-commerce',
+          'Professional Services',
+          'Construction & Real Estate',
+          'Education & Training',
+          'Marketing & Media',
+          'Non-profit & Social Impact',
+          'Other'
+        ],
+        required: true,
+        validate: v => v !== '' && v !== null,
+        errorMsg: 'Please select an industry.'
+      },
+      {
+        id: 'company_size',
+        label: "How large is your team?",
+        hint: 'Click an option to continue',
+        type: 'radio',
+        options: ['Just me', '2–10 people', '11–50 people', '51–200 people', '200+ people'],
+        required: true,
+        autoAdvance: true,
+        validate: v => v !== '' && v !== null,
+        errorMsg: 'Please select your team size.'
+      },
+      {
+        id: 'revenue_range',
+        label: "What's your approximate annual revenue?",
+        hint: 'Click an option to continue',
+        type: 'radio',
+        options: ['Pre-revenue', 'Under $100K', '$100K – $500K', '$500K – $2M', '$2M – $10M', '$10M+'],
+        required: true,
+        autoAdvance: true,
+        validate: v => v !== '' && v !== null,
+        errorMsg: 'Please select a revenue range.'
+      },
+      {
+        id: 'primary_challenge',
+        label: "What's your biggest challenge right now?",
+        hint: 'Press Ctrl+Enter to continue',
+        type: 'textarea',
+        placeholder: 'e.g. Scaling our sales process without burning out the team…',
+        required: true,
+        validate: v => v.trim().length >= 3,
+        errorMsg: 'Please describe your challenge (at least a few words).'
+      },
+      {
+        id: 'primary_goal',
+        label: "What does success look like 12 months from now?",
+        hint: 'Press Ctrl+Enter to continue',
+        type: 'textarea',
+        placeholder: 'e.g. Double our customer base while maintaining quality…',
+        required: true,
+        validate: v => v.trim().length >= 3,
+        errorMsg: 'Please describe your goal (at least a few words).'
+      },
+      {
+        id: 'services_interested',
+        label: "Which services are you most interested in?",
+        hint: 'Select all that apply, then click Continue',
+        type: 'checkbox',
+        options: [
+          'Strategy & Consulting',
+          'Marketing & Growth',
+          'Operations & Systems',
+          'Technology & Automation',
+          'Hiring & Team Building',
+          'Finance & Fundraising'
+        ],
+        required: true,
+        validate: v => Array.isArray(v) && v.length >= 1,
+        errorMsg: 'Please select at least one service.'
+      },
+      {
+        id: 'how_heard',
+        label: "How did you hear about us?",
+        hint: 'Select an option, then click Continue',
+        type: 'select',
+        placeholder: 'Choose one…',
+        options: [
+          'Google Search',
+          'Social Media (LinkedIn, Instagram, etc.)',
+          'Referral from a friend or colleague',
+          'Podcast or Webinar',
+          'Event or Conference',
+          'Other'
+        ],
+        required: true,
+        validate: v => v !== '' && v !== null,
+        errorMsg: 'Please let us know how you heard about us.'
+      },
+      {
+        id: 'anything_else',
+        label: "Anything else you'd like us to know?",
+        hint: 'This is optional — press Ctrl+Enter or click Continue',
+        type: 'textarea',
+        placeholder: 'Feel free to share any context, questions, or details…',
+        required: false,
+        validate: () => true,
+        errorMsg: ''
+      }
+    ];
+
+    /* ── State ──────────────────────────────────────────────── */
+    const STATE = { current: 0, answers: {}, total: QUESTIONS.length };
+
+    /* ── DOM Refs ───────────────────────────────────────────── */
+    const card        = document.getElementById('question-card');
+    const labelEl     = document.getElementById('question-label');
+    const hintEl      = document.getElementById('question-hint');
+    const inputWrap   = document.getElementById('input-wrapper');
+    const errorEl     = document.getElementById('error-msg');
+    const continueBtn = document.getElementById('continue-btn');
+    const kbHint      = document.getElementById('keyboard-hint');
+    const progressFil = document.getElementById('progress-fill');
+    const stepCounter = document.getElementById('step-counter');
+    const backBtn     = document.getElementById('back-btn');
+    const summaryScr  = document.getElementById('summary-screen');
+    const summaryHead = document.getElementById('summary-heading');
+    const summaryGrid = document.getElementById('summary-grid');
+    const downloadBtn = document.getElementById('download-btn');
+    const restartBtn  = document.getElementById('restart-btn');
+
+    /* ── Restore session if available ───────────────────────── */
+    (function restoreSession() {
+      try {
+        const saved = sessionStorage.getItem('onboarding_state');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          Object.assign(STATE.answers, parsed.answers || {});
+          STATE.current = Math.min(parsed.current || 0, STATE.total - 1);
+        }
+      } catch (_) {}
+    })();
+
+    /* ── Save session ───────────────────────────────────────── */
+    function saveSession() {
+      try {
+        sessionStorage.setItem('onboarding_state', JSON.stringify({
+          current: STATE.current,
+          answers: STATE.answers
+        }));
+      } catch (_) {}
+    }
+
+    /* ── Get current input value ────────────────────────────── */
+    function getInputValue(q) {
+      if (q.type === 'text' || q.type === 'tel') {
+        const el = inputWrap.querySelector('.q-input');
+        return el ? el.value : '';
+      }
+      if (q.type === 'textarea') {
+        const el = inputWrap.querySelector('.q-textarea');
+        return el ? el.value : '';
+      }
+      if (q.type === 'select') {
+        const el = inputWrap.querySelector('.q-select');
+        return el ? el.value : '';
+      }
+      if (q.type === 'radio') {
+        const el = inputWrap.querySelector('input[type="radio"]:checked');
+        return el ? el.value : '';
+      }
+      if (q.type === 'checkbox') {
+        const checked = inputWrap.querySelectorAll('input[type="checkbox"]:checked');
+        return Array.from(checked).map(c => c.value);
+      }
+      return '';
+    }
+
+    /* ── Render input for a question ────────────────────────── */
+    function renderInput(q, existingValue) {
+      let html = '';
+
+      if (q.type === 'text' || q.type === 'tel') {
+        const val = existingValue || '';
+        html = `<input
+          class="q-input"
+          type="${q.type}"
+          placeholder="${escHtml(q.placeholder || '')}"
+          autocomplete="${q.autocomplete || 'off'}"
+          value="${escHtml(val)}"
+          aria-label="${escHtml(q.label)}"
+        />`;
+      }
+
+      else if (q.type === 'textarea') {
+        const val = escHtml(existingValue || '');
+        html = `<textarea
+          class="q-textarea"
+          placeholder="${escHtml(q.placeholder || '')}"
+          aria-label="${escHtml(q.label)}"
+          rows="4"
+        >${val}</textarea>`;
+      }
+
+      else if (q.type === 'select') {
+        const opts = q.options.map(o => {
+          const sel = o === existingValue ? 'selected' : '';
+          return `<option value="${escHtml(o)}" ${sel}>${escHtml(o)}</option>`;
+        }).join('');
+        html = `<select class="q-select" aria-label="${escHtml(q.label)}">
+          <option value="" disabled ${!existingValue ? 'selected' : ''}>${escHtml(q.placeholder || 'Choose one…')}</option>
+          ${opts}
+        </select>`;
+      }
+
+      else if (q.type === 'radio') {
+        const items = q.options.map(o => {
+          const checked = o === existingValue ? 'checked' : '';
+          const id = 'opt_' + sanitizeId(o);
+          return `<div class="option-item">
+            <input type="radio" name="${q.id}" id="${id}" value="${escHtml(o)}" ${checked} />
+            <label class="option-label" for="${id}">
+              <span class="option-indicator"></span>
+              ${escHtml(o)}
+            </label>
+          </div>`;
+        }).join('');
+        html = `<div class="option-list" role="radiogroup" aria-label="${escHtml(q.label)}">${items}</div>`;
+      }
+
+      else if (q.type === 'checkbox') {
+        const selected = Array.isArray(existingValue) ? existingValue : [];
+        const items = q.options.map(o => {
+          const checked = selected.includes(o) ? 'checked' : '';
+          const id = 'opt_' + sanitizeId(o);
+          return `<div class="option-item checkbox-item">
+            <input type="checkbox" id="${id}" value="${escHtml(o)}" ${checked} />
+            <label class="option-label" for="${id}">
+              <span class="option-indicator"></span>
+              ${escHtml(o)}
+            </label>
+          </div>`;
+        }).join('');
+        html = `<div class="option-list grid-2" role="group" aria-label="${escHtml(q.label)}">${items}</div>`;
+      }
+
+      inputWrap.innerHTML = html;
+
+      /* Auto-advance for radio */
+      if (q.type === 'radio' && q.autoAdvance) {
+        inputWrap.querySelectorAll('input[type="radio"]').forEach(radio => {
+          radio.addEventListener('change', () => {
+            setTimeout(() => advance(), 260);
+          });
+        });
+      }
+    }
+
+    /* ── Render a question ──────────────────────────────────── */
+    function renderQuestion(index) {
+      const q = QUESTIONS[index];
+      const existing = STATE.answers[q.id];
+
+      labelEl.textContent = q.label;
+      hintEl.textContent  = q.hint || '';
+      errorEl.textContent = '';
+      errorEl.classList.remove('visible');
+
+      renderInput(q, existing);
+
+      /* Button / keyboard hint visibility */
+      if (q.type === 'radio' && q.autoAdvance) {
+        continueBtn.classList.add('hidden');
+        kbHint.classList.add('hidden');
+      } else {
+        continueBtn.classList.remove('hidden');
+        kbHint.textContent = q.type === 'textarea'
+          ? 'or press Ctrl+Enter ↵'
+          : q.type === 'checkbox' || q.type === 'select'
+            ? ''
+            : 'or press Enter ↵';
+        kbHint.classList.toggle('hidden', !kbHint.textContent);
+      }
+
+      /* Progress */
+      const pct = (index / STATE.total) * 100;
+      progressFil.style.width = pct + '%';
+      stepCounter.textContent = (index + 1) + ' / ' + STATE.total;
+      stepCounter.classList.toggle('visible', index > 0 || true);
+      backBtn.classList.toggle('visible', index > 0);
+
+      /* Focus input — wrapped in setTimeout for file:// autofocus quirk */
+      setTimeout(() => {
+        const focusable = inputWrap.querySelector(
+          '.q-input, .q-textarea, .q-select, input[type="radio"], input[type="checkbox"]'
+        );
+        if (focusable) focusable.focus();
+      }, 50);
+    }
+
+    /* ── Validate and show error ────────────────────────────── */
+    function validate(q) {
+      const val = getInputValue(q);
+      if (!q.validate(val)) {
+        errorEl.textContent = q.errorMsg;
+        errorEl.classList.add('visible');
+        inputWrap.classList.remove('shake');
+        /* Force reflow so animation restarts if already shaking */
+        void inputWrap.offsetHeight;
+        inputWrap.classList.add('shake');
+        setTimeout(() => inputWrap.classList.remove('shake'), 500);
+        return false;
+      }
+      errorEl.textContent = '';
+      errorEl.classList.remove('visible');
+      return true;
+    }
+
+    /* ── Advance to next question ───────────────────────────── */
+    let transitioning = false;
+
+    function advance() {
+      if (transitioning) return;
+      const q = QUESTIONS[STATE.current];
+      if (!validate(q)) return;
+
+      STATE.answers[q.id] = getInputValue(q);
+      saveSession();
+
+      transitioning = true;
+
+      /* Flash button */
+      continueBtn.classList.add('pressed');
+      setTimeout(() => continueBtn.classList.remove('pressed'), 120);
+
+      /* Slide out */
+      card.classList.remove('slide-in');
+      card.classList.add('slide-out-left');
+
+      function afterSlideOut(e) {
+        /* Guard: only act on the transform transition end */
+        if (e && e.propertyName !== 'transform') return;
+        card.removeEventListener('transitionend', afterSlideOut);
+
+        STATE.current += 1;
+
+        if (STATE.current >= STATE.total) {
+          showSummary();
+          transitioning = false;
+          return;
+        }
+
+        renderQuestion(STATE.current);
+
+        /* Teleport to right edge (no transition) */
+        card.classList.remove('slide-out-left');
+        card.classList.add('slide-in-right');
+
+        /* Force reflow — intentional, required to trigger CSS transition */
+        void card.offsetHeight;
+
+        /* Animate to center */
+        card.classList.remove('slide-in-right');
+        card.classList.add('slide-in');
+
+        transitioning = false;
+      }
+
+      card.addEventListener('transitionend', afterSlideOut);
+      /* Safety fallback in case transitionend doesn't fire */
+      setTimeout(() => {
+        if (transitioning) {
+          card.removeEventListener('transitionend', afterSlideOut);
+          afterSlideOut(null);
+        }
+      }, 380);
+    }
+
+    /* ── Go back ────────────────────────────────────────────── */
+    function goBack() {
+      if (transitioning || STATE.current === 0) return;
+      transitioning = true;
+
+      card.classList.remove('slide-in');
+      card.classList.add('slide-out-right'); /* exit to the right */
+
+      function afterBack(e) {
+        if (e && e.propertyName !== 'transform') return;
+        card.removeEventListener('transitionend', afterBack);
+
+        STATE.current -= 1;
+        renderQuestion(STATE.current);
+
+        card.classList.remove('slide-out-right');
+        card.classList.add('slide-in-left');  /* enter from the left */
+        void card.offsetHeight; /* intentional reflow */
+        card.classList.remove('slide-in-left');        card.classList.add('slide-in');
+
+        transitioning = false;
+      }
+
+      card.addEventListener('transitionend', afterBack);
+      setTimeout(() => {
+        if (transitioning) {
+          card.removeEventListener('transitionend', afterBack);
+          afterBack(null);
+        }
+      }, 380);
+    }
+
+    /* ── Show Summary Screen ────────────────────────────────── */
+    function showSummary() {
+      card.style.display = 'none';
+      progressFil.style.width = '100%';
+      stepCounter.classList.remove('visible');
+      backBtn.classList.remove('visible');
+
+      const firstName = STATE.answers['first_name'] || 'there';
+      summaryHead.textContent = "You're all set, " + firstName + "!";
+
+      /* Build summary grid */
+      const labels = {
+        first_name:         'First Name',
+        last_name:          'Last Name',
+        phone:              'Phone',
+        business_name:      'Business',
+        industry:           'Industry',
+        company_size:       'Team Size',
+        revenue_range:      'Revenue',
+        primary_challenge:  'Biggest Challenge',
+        primary_goal:       'Goal in 12 Months',
+        services_interested:'Services Interested',
+        how_heard:          'How They Found Us',
+        anything_else:      'Additional Notes'
+      };
+      const longFields = ['primary_challenge', 'primary_goal', 'anything_else'];
+
+      summaryGrid.innerHTML = QUESTIONS.map(q => {
+        const raw = STATE.answers[q.id];
+        if (!raw || (Array.isArray(raw) && raw.length === 0)) return '';
+        const display = Array.isArray(raw) ? raw.join(', ') : raw;
+        const full = longFields.includes(q.id) ? ' full-width' : '';
+        return `<div class="summary-item${full}">
+          <div class="summary-item-label">${escHtml(labels[q.id] || q.id)}</div>
+          <div class="summary-item-value">${escHtml(display)}</div>
+        </div>`;
+      }).join('');
+
+      summaryScr.classList.add('active');
+
+      /* Remove session on completion */
+      try { sessionStorage.removeItem('onboarding_state'); } catch (_) {}
+    }
+
+    /* ── Download JSON ──────────────────────────────────────── */
+    downloadBtn.addEventListener('click', () => {
+      const data = JSON.stringify(STATE.answers, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = 'onboarding-data.json';
+      a.click();
+      URL.revokeObjectURL(url); /* prevent memory leak */
+    });
+
+    /* ── Restart ────────────────────────────────────────────── */
+    restartBtn.addEventListener('click', () => {
+      STATE.current = 0;
+      STATE.answers = {};
+      try { sessionStorage.removeItem('onboarding_state'); } catch (_) {}
+      summaryScr.classList.remove('active');
+      card.style.display = '';
+      card.classList.remove('slide-out-left', 'slide-in-right');
+      card.classList.add('slide-in');
+      renderQuestion(0);
+    });
+
+    /* ── Continue Button ────────────────────────────────────── */
+    continueBtn.addEventListener('click', advance);
+
+    /* ── Back Button ────────────────────────────────────────── */
+    backBtn.addEventListener('click', goBack);
+
+    /* ── Keyboard Handler ───────────────────────────────────── */
+    document.addEventListener('keydown', function (e) {
+      if (STATE.current >= STATE.total) return;
+      const q = QUESTIONS[STATE.current];
+      const tag = document.activeElement ? document.activeElement.tagName : '';
+
+      if (e.key === 'Enter') {
+        /* Textarea: only advance on Ctrl+Enter */
+        if (q.type === 'textarea') {
+          if (!e.ctrlKey && !e.metaKey) return;
+          e.preventDefault();
+          advance();
+          return;
+        }
+        /* Radio / checkbox: handled by click/change listeners, not keyboard Enter */
+        if (q.type === 'radio' || q.type === 'checkbox') return;
+        /* Select: let Enter confirm the select, then advance */
+        if (q.type === 'select' && tag === 'SELECT') {
+          e.preventDefault();
+          advance();
+          return;
+        }
+        /* Text / tel */
+        e.preventDefault();
+        /* Visual flash on button */
+        if (!continueBtn.classList.contains('hidden')) {
+          continueBtn.classList.add('pressed');
+          setTimeout(() => continueBtn.classList.remove('pressed'), 140);
+        }
+        advance();
+      }
+
+      if (e.key === 'Escape') {
+        goBack();
+      }
+    });
+
+    /* ── Helpers ────────────────────────────────────────────── */
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+    function sanitizeId(str) {
+      return String(str).replace(/[^a-z0-9]/gi, '_').toLowerCase();
+    }
+
+    /* ── Init ───────────────────────────────────────────────── */
+    renderQuestion(STATE.current);
+
+  })();
+  </script>
+</body>
+</html>
