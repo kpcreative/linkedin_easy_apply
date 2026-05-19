@@ -1,6 +1,0 @@
-2026/05/19-11:08:49.790 54e4 Reusing MANIFEST C:\Users\I769395\Desktop\browser_automation_project\.chrome-profile\Default\Local Storage\leveldb/MANIFEST-000001
-2026/05/19-11:08:49.799 54e4 Recovering log #19
-2026/05/19-11:08:49.802 54e4 Reusing old log C:\Users\I769395\Desktop\browser_automation_project\.chrome-profile\Default\Local Storage\leveldb/000019.log 
-2026/05/19-11:18:52.739 15e4 Level-0 table #24: started
-2026/05/19-11:18:52.775 15e4 Level-0 table #24: 28009 bytes OK
-2026/05/19-11:18:52.779 15e4 Delete type=0 #19

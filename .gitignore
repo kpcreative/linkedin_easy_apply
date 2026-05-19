@@ -1,6 +1,7 @@
 node_modules/
-dist/
+.chrome-profile/
 screenshots/
 playwright-report/
 test-results/
-.env
+*.png
+*.jpg
