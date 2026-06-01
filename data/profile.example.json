@@ -1,0 +1,66 @@
+{
+  "name": "Your Full Name",
+  "firstName": "Your",
+  "lastName": "Name",
+  "email": "you@example.com",
+  "phone": "9876543210",
+  "phoneCountryCode": "India (+91)",
+  "city": "Bengaluru",
+  "currentLocation": "Bengaluru",
+  "linkedinUrl": "https://www.linkedin.com/in/your-profile/",
+  "githubUrl": "https://github.com/your-username",
+  "education": [
+    {
+      "degree": "Bachelor of Technology (Computer Science and Engineering)",
+      "institution": "Your University, City",
+      "year": 2025
+    }
+  ],
+  "skills": [
+    "JavaScript",
+    "TypeScript",
+    "React.js",
+    "Node.js",
+    "Python",
+    "Git",
+    "Docker"
+  ],
+  "workExperience": [
+    {
+      "company": "Company Name",
+      "title": "Software Developer Intern",
+      "startDate": "Jun 2024",
+      "endDate": "Aug 2024",
+      "duration": "3 months",
+      "description": "Brief description of what you built or contributed."
+    }
+  ],
+  "experience": {
+    "Company Name": {
+      "designation": "Software Developer Intern",
+      "duration": "Jun 2024 - Aug 2024"
+    }
+  },
+  "yearsOfTotalExperience": 0,
+  "relocation": true,
+  "requiresSponsorship": false,
+  "workAuthorization": true,
+  "noticePeriodDays": 0,
+  "desiredSalary": "800000",
+  "currentCTC": "0",
+  "expectedCTC": "1000000",
+  "genderIdentity": "Prefer not to say",
+  "veteranStatus": "I am not a protected veteran",
+  "disabilityStatus": "I do not wish to answer",
+  "projects": [
+    {
+      "name": "Your Project Name",
+      "description": "What it does and what problem it solves.",
+      "technologies": ["React", "Node.js", "MongoDB"]
+    }
+  ],
+  "certifications": [],
+  "achievements": [
+    "Your notable achievement here"
+  ]
+}

@@ -2,53 +2,77 @@ import { chromium, Page, BrowserContext, Locator } from 'playwright';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as readline from 'readline';
+import * as dotenv from 'dotenv';
+dotenv.config({ path: path.join(__dirname, '..', '.env') });
+import { askLLM } from '../src/services/llmService';
 
-// ─── USER CONFIG — edit this before running ──────────────────────────────────
+// ─── Constants ─────────────────────────────────────────────────────────────────
+
+const DATA_DIR    = path.join(__dirname, '..', 'data');
+const OUTPUT_FILE = path.join(DATA_DIR, 'linkedin-applications.json');
+const RETRY_FILE  = path.join(DATA_DIR, 'linkedin-retry-queue.json');
+const PROFILE_DIR = path.join(__dirname, '..', '.chrome-profile');
+
+// ─── Profile / Preferences ─────────────────────────────────────────────────────
+// Written by the web UI (web/). Restart the script to pick up any changes.
+
+function loadAIProfile(): Record<string, unknown> {
+  try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'profile.json'), 'utf-8')) as Record<string, unknown>; }
+  catch { return {}; }
+}
+
+function loadUserPrefs(): Record<string, unknown> {
+  try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'prefs.json'), 'utf-8')) as Record<string, unknown>; }
+  catch { return {}; }
+}
+
+const aiProfile = loadAIProfile();
+const userPrefs  = loadUserPrefs();
+
+// ─── CONFIG — fully driven by profile.json + prefs.json ──────────────────────
 //
 //  HOW TO USE (recommended — CDP method):
 //    1. Close all Chrome windows.
 //    2. Open a terminal and run:
 //         "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222
-//       (adjust the path if Chrome is installed elsewhere)
 //    3. In your browser, ensure you are logged in to LinkedIn.
 //    4. Run this script:  npm run script:linkedin
 //
-//  If Chrome is not available or the above fails, the script will open its own
-//  headed browser window. Log in manually, then press Enter in this terminal.
+//  All personal answers come from data/profile.json (set via localhost:3000).
+//  Job search keywords/location come from data/prefs.json.
+//  Restart the script after updating your profile to apply changes.
 
 const CONFIG = {
-  // Job search parameters
-  keywords:        'fresher software developer',
-  location:        'Bengaluru',
-  maxApplications: 5,            // stop after this many successful submissions
-  resumePath:      'C:/Users/I769395/Desktop/browser_automation_project/Kartik_Kumar_Pandey_Resume.pdf' as string | null,
+  // Job search — from data/prefs.json
+  keywords:        (userPrefs['keywords'] as string)        || 'Software Engineer',
+  location:        (userPrefs['location'] as string)        || 'Bengaluru',
+  maxApplications: Number(userPrefs['maxApplications'])     || 5,
+  resumePath:      null as string | null,   // LinkedIn uses your stored profile resume
 
-  // Canned answers for common Easy Apply questions.
-  // The script will warn you if it encounters a question not covered here —
-  // just add a new entry to resolveAnswer() and re-run.
+  // All answers come from data/profile.json — no hardcoded personal data
   answers: {
-    firstName:           'Kartik',
-    lastName:            'Pandey',
-    fullName:            'Kartik Kumar Pandey',
-    email:               'kamalnayankumar008@gmail.com',
-    yearsOfExperience:   '0',
-    authorizedToWork:    'Yes',
-    requireSponsorship:  'No',
-    genderIdentity:      'Male',
-    veteranStatus:       'I am not a protected veteran',
-    disabilityStatus:    'I do not wish to answer',
-    desiredSalary:       '800000',
-    currentCTC:          '100000',             // student/intern — entering 0 LPA
-    expectedCTC:         '1200000',       // 12 LPA expected
-    phoneCountryCode:    'India (+91)',   // must match the dropdown option text exactly
-    phoneNumber:         '7903265535',    // local digits only — country code is separate
-    city:                'Bengaluru',
-    noticePeriod:        '0',             // can join immediately (student)
-    linkedinUrl:         'https://www.linkedin.com/in/kartikpandey-jiit',
-    githubUrl:           'https://github.com/kpcreative',
+    firstName:          (aiProfile['firstName'] as string)          || '',
+    lastName:           (aiProfile['lastName'] as string)           || '',
+    fullName:           (aiProfile['name'] as string)               || '',
+    email:              (aiProfile['email'] as string)              || '',
+    yearsOfExperience:  String(aiProfile['yearsOfTotalExperience']  ?? '0'),
+    authorizedToWork:   aiProfile['workAuthorization'] !== false    ? 'Yes' : 'No',
+    requireSponsorship: aiProfile['requiresSponsorship'] === true   ? 'Yes' : 'No',
+    genderIdentity:     (aiProfile['genderIdentity'] as string)     || 'Prefer not to say',
+    veteranStatus:      (aiProfile['veteranStatus'] as string)      || 'I am not a protected veteran',
+    disabilityStatus:   (aiProfile['disabilityStatus'] as string)   || 'I do not wish to answer',
+    desiredSalary:      String(aiProfile['desiredSalary'] || aiProfile['expectedCTC'] || ''),
+    currentCTC:         String(aiProfile['currentCTC']    ?? '0'),
+    expectedCTC:        String(aiProfile['expectedCTC']   || ''),
+    phoneCountryCode:   (aiProfile['phoneCountryCode'] as string)   || 'India (+91)',
+    phoneNumber:        (aiProfile['phone'] as string)              || '',
+    city:               (aiProfile['city'] as string) || (aiProfile['currentLocation'] as string) || '',
+    noticePeriod:       String(aiProfile['noticePeriodDays']        ?? '0'),
+    linkedinUrl:        (aiProfile['linkedinUrl'] as string)        || '',
+    githubUrl:          (aiProfile['githubUrl'] as string)          || '',
   },
 
-  // Delays in milliseconds — keep these human-range to avoid detection
+  // Delays (ms) — keep human-range to avoid detection
   delays: {
     betweenApplications: { min: 8_000,  max: 14_000 },
     betweenSteps:        { min: 1_200,  max: 3_500  },
@@ -78,13 +102,6 @@ interface ApplicationRecord {
   errorDetail:   string | null;
   missingFields: string[];   // question labels for which no canned answer existed
 }
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const DATA_DIR    = path.join(__dirname, '..', 'data');
-const OUTPUT_FILE = path.join(DATA_DIR, 'linkedin-applications.json');
-const RETRY_FILE  = path.join(DATA_DIR, 'linkedin-retry-queue.json');
-const PROFILE_DIR = path.join(__dirname, '..', '.chrome-profile');
 
 // ─── Logging helpers ─────────────────────────────────────────────────────────
 
@@ -208,6 +225,15 @@ async function humanTypeWithAutocomplete(input: Locator, text: string, page: Pag
 }
 
 async function humanClick(locator: Locator, page: Page): Promise<void> {
+  // Dismiss any open typeahead/autocomplete dropdown before clicking —
+  // these overlay buttons and cause 30s timeout errors
+  const typeaheadOpen = await page.locator(
+    '.search-typeahead-v2__hit, [data-test-single-typeahead-entity-form-search-result]'
+  ).first().isVisible({ timeout: 300 }).catch(() => false);
+  if (typeaheadOpen) {
+    await page.keyboard.press('Tab');
+    await page.waitForTimeout(400);
+  }
   try {
     const box = await locator.boundingBox();
     if (box) {
@@ -233,12 +259,17 @@ function loadApplications(): ApplicationRecord[] {
 
 function appendApplication(record: ApplicationRecord): void {
   const existing = loadApplications();
-  existing.push(record);
+  const idx = existing.findIndex(r => r.id === record.id);
+  if (idx !== -1) {
+    existing[idx] = record;
+  } else {
+    existing.push(record);
+  }
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(existing, null, 2), 'utf-8');
 }
 
 function isAlreadyApplied(jobId: string, records: ApplicationRecord[]): boolean {
-  return records.some(r => r.id === jobId && r.status === 'submitted');
+  return records.some(r => r.id === jobId && (r.status === 'submitted' || r.status === 'already_applied'));
 }
 
 // ─── Retry queue helpers ───────────────────────────────────────────────────────
@@ -471,41 +502,85 @@ async function collectJobCards(page: Page): Promise<JobCard[]> {
   return jobs;
 }
 
+// ─── Job scoring ──────────────────────────────────────────────────────────────
+// Scores all jobs with LLM and returns them sorted best-match first.
+// Jobs scoring below MIN_SCORE are filtered out to avoid wasting applications.
+const MIN_JOB_SCORE = 35;
+
+async function scoreAndSortJobs(jobs: JobCard[]): Promise<JobCard[]> {
+  if (!process.env.GROQ_API_KEY || Object.keys(aiProfile).length === 0) {
+    log('  [AI] Job scoring skipped (no API key or profile not set up)');
+    return jobs;
+  }
+
+  log(`\n  [AI] Scoring ${jobs.length} job(s) for profile match...`);
+  const scored: Array<{ job: JobCard; score: number }> = [];
+
+  for (const job of jobs) {
+    try {
+      const result = await askLLM({
+        question: `Rate 0-100 how well this job matches the candidate's skills and experience. Job: "${job.title}" at "${job.company}". Reply with ONLY a number, e.g. {"answer": "75"}.`,
+        fieldType: 'text',
+        profile: aiProfile,
+      });
+      const raw = result && 'answer' in result ? result.answer.replace(/\D/g, '') : '';
+      const score = Math.max(0, Math.min(100, parseInt(raw, 10) || 50));
+      log(`  [AI] Job score: ${score}/100 — "${job.title}" @ ${job.company}`);
+      scored.push({ job, score });
+    } catch {
+      scored.push({ job, score: 50 });
+    }
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+  const passing = scored.filter(s => s.score >= MIN_JOB_SCORE);
+  const filtered = scored.length - passing.length;
+  if (filtered > 0) log(`  [AI] Filtered out ${filtered} job(s) with score < ${MIN_JOB_SCORE}`);
+
+  return passing.map(s => s.job);
+}
+
 // ─── Form helpers ─────────────────────────────────────────────────────────────
 
 function resolveAnswer(label: string): string | null {
+  // Helper: read from aiProfile first, fall back to CONFIG.answers
+  const p = (key: string, fallback: string): string =>
+    (typeof aiProfile[key] === 'string' && (aiProfile[key] as string).trim())
+      ? (aiProfile[key] as string)
+      : fallback;
+
   const l = label.toLowerCase();
 
   // Name fields — check before generic "first" match
-  if (/first\s*name/i.test(l))                             return CONFIG.answers.firstName;
-  if (/last\s*name|surname|family\s*name/i.test(l))        return CONFIG.answers.lastName;
-  if (/\bfull\s*name\b|\bname\b/i.test(l))                 return CONFIG.answers.fullName;
-  if (/\bemail\b|e-mail/i.test(l))                         return CONFIG.answers.email;
+  if (/first\s*name/i.test(l))                             return p('firstName', CONFIG.answers.firstName);
+  if (/last\s*name|surname|family\s*name/i.test(l))        return p('lastName', CONFIG.answers.lastName);
+  if (/\bfull\s*name\b|\bname\b/i.test(l))                 return p('name', CONFIG.answers.fullName);
+  if (/\bemail\b|e-mail/i.test(l))                         return p('email', CONFIG.answers.email);
 
   // Country code must be checked BEFORE the generic phone check
-  if (/country\s*code/i.test(l))                            return CONFIG.answers.phoneCountryCode;
+  if (/country\s*code/i.test(l))                            return p('phoneCountryCode', CONFIG.answers.phoneCountryCode);
   if (/additional\s*months|months.*experience|months.*additional/i.test(l)) return '0';  // 0 additional months
-  if (/years?.*(of\s+)?experience/i.test(l))              return CONFIG.answers.yearsOfExperience;
+  if (/years?.*(of\s+)?experience/i.test(l))              return p('yearsOfTotalExperience', CONFIG.answers.yearsOfExperience).toString();
   if (/authorized|legally\s+authorized|eligible.*(work|employment)/i.test(l)) return CONFIG.answers.authorizedToWork;
   if (/require.*sponsor|need.*visa|visa.*sponsor/i.test(l)) return CONFIG.answers.requireSponsorship;
-  if (/gender|sex\b/i.test(l))                             return CONFIG.answers.genderIdentity;
-  if (/veteran|military\s+status/i.test(l))                return CONFIG.answers.veteranStatus;
-  if (/disability|disabled/i.test(l))                      return CONFIG.answers.disabilityStatus;
-  if (/salary|compensation|expected.*pay|desired.*pay/i.test(l)) return CONFIG.answers.desiredSalary;
-  if (/current.*ctc|current.*salary|current.*compensation/i.test(l)) return CONFIG.answers.currentCTC;
-  if (/expected.*ctc|expected.*salary|expected.*compensation/i.test(l)) return CONFIG.answers.expectedCTC;
-  if (/phone|mobile|telephone/i.test(l))                   return CONFIG.answers.phoneNumber;
-  if (/\bcity\b|location.*city|\bcurrent.*location\b|\blocation\b/i.test(l))  return CONFIG.answers.city;
+  if (/gender|sex\b/i.test(l))                             return p('genderIdentity', CONFIG.answers.genderIdentity);
+  if (/veteran|military\s+status/i.test(l))                return p('veteranStatus', CONFIG.answers.veteranStatus);
+  if (/disability|disabled/i.test(l))                      return p('disabilityStatus', CONFIG.answers.disabilityStatus);
+  if (/salary|compensation|expected.*pay|desired.*pay/i.test(l)) return p('desiredSalary', CONFIG.answers.desiredSalary);
+  if (/current.*ctc|current.*salary|current.*compensation/i.test(l)) return p('currentCTC', CONFIG.answers.currentCTC);
+  if (/expected.*ctc|expected.*salary|expected.*compensation/i.test(l)) return p('expectedCTC', CONFIG.answers.expectedCTC);
+  if (/phone|mobile|telephone/i.test(l))                   return p('phone', CONFIG.answers.phoneNumber);
+  if (/\bcity\b|location.*city|\bcurrent.*location\b|\blocation\b/i.test(l))  return p('city', CONFIG.answers.city);
   if (/notice\s*(period|months|weeks|days)|start\s*date\s*notice|how\s*soon.*join|earliest.*join|joining.*timeline/i.test(l)) return CONFIG.answers.noticePeriod;
   // "Is your LinkedIn profile up to date" — Yes/No select, NOT a URL field (check before linkedin.*url)
   if (/linkedin.*up\s+to\s+date|up\s+to\s+date.*linkedin/i.test(l)) return 'Yes';
-  if (/linkedin.*url|linkedin.*profile|linkedin\.com/i.test(l)) return CONFIG.answers.linkedinUrl;
-  if (/github.*url|github\.com|portfolio.*url|website.*url/i.test(l)) return CONFIG.answers.githubUrl;
+  if (/linkedin.*url|linkedin.*profile|linkedin\.com/i.test(l)) return p('linkedinUrl', CONFIG.answers.linkedinUrl);
+  if (/github.*url|github\.com|portfolio.*url|website.*url/i.test(l)) return p('githubUrl', CONFIG.answers.githubUrl);
 
   // Yes/No fallbacks for common screener questions about location, availability, willingness
   if (/\bjoin.*immediately\b|available.*immediately|immediate.*joiner|immediate.*join/i.test(l)) return 'Yes';
   if (/\bbanglore\b|\bbangalore\b|\bbengaluru\b.*location|location.*\bbengaluru\b|current.*location.*bang/i.test(l)) return 'Yes';
-  if (/relocat/i.test(l))                                   return 'Yes';
+  if (/relocat/i.test(l))                                   return (aiProfile['relocation'] === false) ? 'No' : 'Yes';
   if (/work.*onsite|onsite.*work|in.?office/i.test(l))     return 'Yes';
   // Generic "do you have experience in X" screener → default Yes
   if (/\bdo you have experience\b/i.test(l))               return 'Yes';
@@ -532,7 +607,7 @@ function resolveAnswer(label: string): string | null {
   if (/available\s+in\s+(bengaluru|bangalore)/i.test(l)) return 'Yes';
 
   // "What is your overall hands-on industry work experience"
-  if (/overall.*hands.?on.*experience|industry.*work\s*experience|hands.?on.*industry/i.test(l)) return CONFIG.answers.yearsOfExperience;
+  if (/overall.*hands.?on.*experience|industry.*work\s*experience|hands.?on.*industry/i.test(l)) return p('yearsOfTotalExperience', CONFIG.answers.yearsOfExperience).toString();
 
   // High school / diploma education question
   if (/high\s*school|diploma|secondary\s+school/i.test(l)) return 'Yes';
@@ -559,7 +634,7 @@ function resolveAnswer(label: string): string | null {
   if (/consent\s+to\s+collect|consent\s+to\s+store|consent.*process.*data/i.test(l)) return 'Yes';
 
   // "How much experience in [technology]?" / "Provide your experience in [X]?" → 0 (fresher)
-  if (/how\s+much\s+experience\s+in|provide\s+your\s+experience\s+in|experience\s+in\s+\w/i.test(l)) return '0';
+  if (/how\s+much\s+experience\s+in|provide\s+your\s+experience\s+in|experience\s+in\s+\w/i.test(l)) return CONFIG.answers.yearsOfExperience;
 
   // "Rate your comm(unication) skills out of 5?" — eTeam uses Yes/No for this
   if (/rate.*comm.*skills|comm.*skills.*rate|communication\s+skills.*out\s+of/i.test(l)) return 'Yes';
@@ -629,7 +704,7 @@ async function getLabelFor(input: Locator, modal: Locator): Promise<string> {
   return dedupeLabel(nearestLabel ?? '');
 }
 
-async function handleFormStep(page: Page, modal: Locator, _job: JobCard): Promise<string[]> {
+async function handleFormStep(page: Page, modal: Locator, _job: JobCard, jobDescription = ''): Promise<string[]> {
   const missing: string[] = [];
 
   // 1. Resume file upload
@@ -654,7 +729,15 @@ async function handleFormStep(page: Page, modal: Locator, _job: JobCard): Promis
 
     if (!answer) {
       const currentVal = (await input.inputValue().catch(() => '')).trim();
-      if (currentVal === '' && label) {
+      if (currentVal !== '') continue; // already has a value — leave it
+      if (!label) continue;
+      // LLM fallback for fields not covered by resolveAnswer
+      log(`  [AI] Question detected: "${label}" (text)`);
+      const llmResult = await askLLM({ question: label, fieldType: 'text', profile: aiProfile, jobDescription });
+      if (llmResult && 'answer' in llmResult && llmResult.answer.trim()) {
+        await humanType(input, llmResult.answer, page);
+        log(`  [AI] Option selected: "${llmResult.answer.slice(0, 60)}" for "${label}"`);
+      } else {
         warn(`  [form] No answer for text field: "${label}" — leaving blank`);
         missing.push(label);
       }
@@ -710,8 +793,15 @@ async function handleFormStep(page: Page, modal: Locator, _job: JobCard): Promis
       await humanType(ta, answer, page);
       log(`  [form] Filled textarea "${label}" → "${answer.slice(0, 40)}"`);
     } else if (label) {
-      warn(`  [form] No answer for textarea: "${label}" — leaving blank`);
-      missing.push(label);
+      log(`  [AI] Question detected: "${label}" (textarea)`);
+      const llmResult = await askLLM({ question: label, fieldType: 'textarea', profile: aiProfile, jobDescription });
+      if (llmResult && 'answer' in llmResult && llmResult.answer.trim()) {
+        await humanType(ta, llmResult.answer, page);
+        log(`  [AI] Text generated for textarea "${label}"`);
+      } else {
+        warn(`  [form] No answer for textarea: "${label}" — leaving blank`);
+        missing.push(label);
+      }
     }
   }
 
@@ -719,7 +809,27 @@ async function handleFormStep(page: Page, modal: Locator, _job: JobCard): Promis
   const selects = await modal.locator('select:visible').all();
   for (const select of selects) {
     const label  = await getLabelFor(select, modal);
-    const answer = resolveAnswer(label);
+
+    // Collect non-placeholder option texts upfront for LLM
+    const allSelectOpts = await select.locator('option').all();
+    const optionTexts: string[] = [];
+    for (const opt of allSelectOpts) {
+      const t = (await opt.textContent().catch(() => '') ?? '').trim();
+      const v = (await opt.getAttribute('value').catch(() => '') ?? '').trim();
+      if (v && v !== 'default' && !/(select|choose|pick)/i.test(t)) optionTexts.push(t);
+    }
+
+    // LLM as primary decision maker; resolveAnswer as fallback
+    let answer: string | null = null;
+    if (label && optionTexts.length > 0) {
+      log(`  [AI] Question detected: "${label}" (dropdown, ${optionTexts.length} options)`);
+      const llmResult = await askLLM({ question: label, fieldType: 'dropdown', options: optionTexts, profile: aiProfile, jobDescription });
+      if (llmResult && 'selectedOption' in llmResult) {
+        answer = llmResult.selectedOption;
+        log(`  [AI] Option selected: "${answer}" for "${label}"`);
+      }
+    }
+    if (!answer) answer = resolveAnswer(label);
     if (!answer) {
       if (label) {
         warn(`  [form] No answer for select: "${label}" — leaving as-is`);
@@ -833,14 +943,6 @@ async function handleFormStep(page: Page, modal: Locator, _job: JobCard): Promis
     const labelEl = wrapper.locator('label, .fb-dash-form-element__label, .fb-form-element__label').first();
     const rawLabel = (await labelEl.textContent().catch(() => ''))?.trim() ?? '';
     const label = dedupeLabel(rawLabel);
-    const answer = resolveAnswer(label);
-    if (!answer) {
-      if (label) {
-        warn(`  [form] No answer for custom dropdown: "${label}" — leaving as-is`);
-        missing.push(label);
-      }
-      continue;
-    }
 
     // Click the trigger button to open the options panel
     const trigger = wrapper.locator('button[aria-haspopup="listbox"], button[aria-expanded]').first();
@@ -848,19 +950,46 @@ async function handleFormStep(page: Page, modal: Locator, _job: JobCard): Promis
     await trigger.click().catch(() => {});
     await page.waitForTimeout(400);
 
-    // Find the matching option in the listbox
+    // Find the listbox
     const listbox = page.locator('[role="listbox"]:visible').first();
     const appeared = await listbox.waitFor({ state: 'visible', timeout: 2_000 }).then(() => true).catch(() => false);
     if (!appeared) {
       warn(`  [form] Custom dropdown listbox did not appear for "${label}"`);
-      missing.push(label);
+      if (label) missing.push(label);
+      continue;
+    }
+
+    // Collect all option texts from the open listbox for LLM
+    const options = listbox.locator('[role="option"]');
+    const count = await options.count().catch(() => 0);
+    const optionTexts: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const t = (await options.nth(i).textContent().catch(() => '') ?? '').trim();
+      if (t) optionTexts.push(t);
+    }
+
+    // LLM as primary; resolveAnswer as fallback
+    let answer: string | null = null;
+    if (label && optionTexts.length > 0) {
+      log(`  [AI] Question detected: "${label}" (custom dropdown, ${optionTexts.length} options)`);
+      const llmResult = await askLLM({ question: label, fieldType: 'dropdown', options: optionTexts, profile: aiProfile, jobDescription });
+      if (llmResult && 'selectedOption' in llmResult) {
+        answer = llmResult.selectedOption;
+        log(`  [AI] Option selected: "${answer}" for "${label}"`);
+      }
+    }
+    if (!answer) answer = resolveAnswer(label);
+    if (!answer) {
+      await page.keyboard.press('Escape').catch(() => {});
+      if (label) {
+        warn(`  [form] No answer for custom dropdown: "${label}" — leaving as-is`);
+        missing.push(label);
+      }
       continue;
     }
 
     // Try exact text match first, then partial/numeric
-    const options = listbox.locator('[role="option"]');
     let picked = false;
-    const count = await options.count().catch(() => 0);
     for (let i = 0; i < count; i++) {
       const opt = options.nth(i);
       const optText = (await opt.textContent().catch(() => ''))?.trim() ?? '';
@@ -889,7 +1018,26 @@ async function handleFormStep(page: Page, modal: Locator, _job: JobCard): Promis
   for (const group of radioGroups) {
     const legendRaw = ((await group.locator('legend, span.fb-form-element__label, .fb-dash-form-element__label').first().textContent().catch(() => ''))?.trim()) ?? '';
     const legend = dedupeLabel(legendRaw);
-    const answer = resolveAnswer(legend);
+
+    // Collect all radio label texts for LLM
+    const allLabels = await group.locator('label').all();
+    const allLabelTexts: string[] = [];
+    for (const lbl of allLabels) {
+      const t = (await lbl.textContent().catch(() => '') ?? '').trim();
+      if (t) allLabelTexts.push(t);
+    }
+
+    // LLM as primary; resolveAnswer as fallback
+    let answer: string | null = null;
+    if (legend && allLabelTexts.length > 0) {
+      log(`  [AI] Question detected: "${legend}" (radio, ${allLabelTexts.length} options)`);
+      const llmResult = await askLLM({ question: legend, fieldType: 'radio', options: allLabelTexts, profile: aiProfile, jobDescription });
+      if (llmResult && 'selectedOption' in llmResult) {
+        answer = llmResult.selectedOption;
+        log(`  [AI] Option selected: "${answer}" for "${legend}"`);
+      }
+    }
+    if (!answer) answer = resolveAnswer(legend);
     if (!answer) {
       if (legend) missing.push(legend);
       continue;
@@ -904,7 +1052,6 @@ async function handleFormStep(page: Page, modal: Locator, _job: JobCard): Promis
       log(`  [form] Selected radio "${answer}" for "${legend}"`);
     } else {
       // Fallback: find any label whose text contains the answer (case-insensitive)
-      const allLabels = await group.locator('label').all();
       let clicked = false;
       for (const lbl of allLabels) {
         const txt = (await lbl.textContent().catch(() => '') ?? '').trim();
@@ -934,7 +1081,7 @@ async function handleFormStep(page: Page, modal: Locator, _job: JobCard): Promis
     }
   }
 
-  // 6. Checkboxes — auto-check attestation/agreement boxes
+  // 6. Checkboxes — auto-check attestation/agreement boxes; LLM for others
   const checkboxes = await modal.locator('input[type="checkbox"]:visible').all();
   for (const cb of checkboxes) {
     const isChecked = await cb.isChecked().catch(() => false);
@@ -943,6 +1090,13 @@ async function handleFormStep(page: Page, modal: Locator, _job: JobCard): Promis
     if (/agree|certify|acknowledge|confirm|i\s+certify|consent|authorize/i.test(label)) {
       await cb.check();
       log(`  [form] Checked attestation: "${label.slice(0, 60)}"`);
+    } else if (label) {
+      log(`  [AI] Question detected: "${label}" (checkbox)`);
+      const llmResult = await askLLM({ question: label, fieldType: 'checkbox', profile: aiProfile, jobDescription });
+      if (llmResult && 'checked' in llmResult && llmResult.checked) {
+        await cb.check().catch(() => {});
+        log(`  [AI] Checked non-attestation checkbox: "${label.slice(0, 60)}"`);
+      }
     }
   }
 
@@ -951,7 +1105,7 @@ async function handleFormStep(page: Page, modal: Locator, _job: JobCard): Promis
 
 // ─── Modal navigation ─────────────────────────────────────────────────────────
 
-async function walkModal(page: Page, modal: Locator, job: JobCard): Promise<{ status: ApplicationStatus; missingFields: string[] }> {
+async function walkModal(page: Page, modal: Locator, job: JobCard, jobDescription = ''): Promise<{ status: ApplicationStatus; missingFields: string[] }> {
   let reviewedOnce = false;
   const allMissing: string[] = [];
 
@@ -972,7 +1126,7 @@ async function walkModal(page: Page, modal: Locator, job: JobCard): Promise<{ st
 
     if (hasSubmit) {
       // Handle the current step's form before submitting
-      const stepMissing = await handleFormStep(page, modal, job);
+      const stepMissing = await handleFormStep(page, modal, job, jobDescription);
       allMissing.push(...stepMissing);
       await randomDelay(page, CONFIG.delays.afterClick);
 
@@ -1018,7 +1172,7 @@ async function walkModal(page: Page, modal: Locator, job: JobCard): Promise<{ st
     }
 
     // Fill out the current step before advancing
-    const stepMissing = await handleFormStep(page, modal, job);
+    const stepMissing = await handleFormStep(page, modal, job, jobDescription);
     allMissing.push(...stepMissing);
     await randomDelay(page, CONFIG.delays.afterClick);
 
@@ -1361,7 +1515,7 @@ async function applyToJob(page: Page, job: JobCard, searchUrl: string): Promise<
     return { status: 'already_applied', missingFields: [] };
   }
 
-  return await walkModal(page, modal, job);
+  return await walkModal(page, modal, job, (descForElig ?? '').slice(0, 1200));
 }
 
 // ─── Output ───────────────────────────────────────────────────────────────────
@@ -1472,7 +1626,7 @@ async function main(): Promise<void> {
     await dismissLinkedInModals(page);
     await page.waitForTimeout(2_000);
 
-    const freshJobs = await collectJobCards(page);
+    const freshJobs = await scoreAndSortJobs(await collectJobCards(page));
 
     // Retry-queue jobs go first — but ONLY those that also appear in fresh results
     // (so we can click them from the search panel). Jobs not in fresh results have

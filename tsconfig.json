@@ -11,6 +11,6 @@
     "rootDir": ".",
     "skipLibCheck": true
   },
-  "include": ["scripts/**/*.ts", "tests/**/*.ts", "playwright.config.ts"],
+  "include": ["scripts/**/*.ts", "tests/**/*.ts", "playwright.config.ts", "src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

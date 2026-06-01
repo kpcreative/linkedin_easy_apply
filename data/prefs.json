@@ -1,0 +1,19 @@
+{
+  "keywords": "AI engineer",
+  "location": "Bengaluru",
+  "workMode": [
+    "remote",
+    "hybrid",
+    "onsite"
+  ],
+  "minExperience": 0,
+  "maxExperience": 2,
+  "maxApplications": 25,
+  "easyApplyOnly": true,
+  "requiresSponsorship": false,
+  "minSalary": 500000,
+  "maxSalary": 2000000,
+  "jobTitles": [
+    "AI engineer"
+  ]
+}

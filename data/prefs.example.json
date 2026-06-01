@@ -1,0 +1,17 @@
+{
+  "keywords": "Software Engineer",
+  "location": "Bengaluru",
+  "workMode": ["remote", "hybrid", "onsite"],
+  "minExperience": 0,
+  "maxExperience": 2,
+  "maxApplications": 5,
+  "easyApplyOnly": true,
+  "requiresSponsorship": false,
+  "minSalary": 500000,
+  "maxSalary": 1500000,
+  "jobTitles": [
+    "Software Engineer",
+    "Frontend Developer",
+    "Full Stack Developer"
+  ]
+}

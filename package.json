@@ -16,6 +16,9 @@
     "test:ui": "playwright test --ui",
     "test:report": "playwright show-report"
   },
+  "dependencies": {
+    "dotenv": "^16.6.1"
+  },
   "devDependencies": {
     "@playwright/test": "^1.60.0",
     "@types/node": "^22.0.0",
