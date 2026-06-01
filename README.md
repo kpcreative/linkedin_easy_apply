@@ -4,6 +4,83 @@ An AI-powered LinkedIn Easy Apply bot. It browses job listings, scores them agai
 
 ---
 
+## New User — What You Need to Set Up
+
+When you clone this repo, **three things are missing** and must be created before the bot can run. Nothing is auto-created on install.
+
+### Minimum checklist
+
+| # | What | How | Time |
+|---|---|---|---|
+| 1 | **Groq API key** | Sign up free at [console.groq.com](https://console.groq.com) → API Keys → Create | 2 min |
+| 2 | **`.env` file** | `cp .env.example .env` then paste your key | 1 min |
+| 3 | **`data/profile.json`** | Use the web wizard (recommended) or copy the example | 5 min |
+
+`data/prefs.json` is also gitignored but the wizard creates it for you. If you skip the wizard, copy `data/prefs.example.json` → `data/prefs.json` and edit it.
+
+---
+
+### Option A — Web wizard (recommended, no manual JSON editing)
+
+```bash
+git clone https://github.com/kpcreative/linkedin_easy_apply.git
+cd linkedin_easy_apply
+
+# Install dependencies
+npm install
+cd web && npm install && cd ..
+
+# Create .env and add your Groq key
+cp .env.example .env
+# → open .env and set GROQ_API_KEY=gsk_...
+
+# Start the dashboard
+cd web && npm run dev
+```
+
+Open [http://localhost:3000/onboarding](http://localhost:3000/onboarding). The 3-step wizard will:
+1. Accept a pasted resume or PDF/DOCX upload
+2. Call the LLM to extract your profile → saves `data/profile.json` automatically
+3. Let you set job preferences → saves `data/prefs.json` automatically
+
+After finishing the wizard, go back to [http://localhost:3000](http://localhost:3000) and click **Start Automation**.
+
+---
+
+### Option B — Manual setup (no dashboard, script only)
+
+```bash
+git clone https://github.com/kpcreative/linkedin_easy_apply.git
+cd linkedin_easy_apply
+npm install
+npx playwright install
+
+cp .env.example .env
+# → open .env and set GROQ_API_KEY=gsk_...
+
+cp data/profile.example.json data/profile.json
+# → open data/profile.json and fill in your real details
+
+cp data/prefs.example.json data/prefs.json
+# → open data/prefs.json and set your job keywords / location
+
+npm run script:linkedin
+```
+
+---
+
+### What each missing file does
+
+**`.env`** — holds your Groq API key. Without it the LLM won't work and every application will fail at the scoring step.
+
+**`data/profile.json`** — your personal data: name, email, phone, skills, experience, salary expectations. The script reads this at startup to fill every form field. Without it, all form answers default to empty strings and the bot logs many `[form] No answer` warnings.
+
+**`data/prefs.json`** — your job search config: what role to search, what city, how many applications per run. Without it the script falls back to hardcoded defaults (`Software Engineer`, `Bengaluru`, max 5 applications).
+
+> **None of these files are ever committed to git.** They are in `.gitignore` to protect your personal data and API key. The `*.example.json` files in the repo are safe placeholder templates.
+
+---
+
 ## How It Works
 
 ```
