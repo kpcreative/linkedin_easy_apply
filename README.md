@@ -287,6 +287,58 @@ The LLM is `llama-3.3-70b-versatile` on Groq by default (configurable via `LLM_M
 
 ---
 
+## Why LLM Instead of Pure Deterministic Answers
+
+A natural question: if name, email, salary, and notice period all come from `profile.json`, why not just hardcode the rest too?
+
+### The problem with a fully deterministic approach
+
+LinkedIn Easy Apply forms are **not standardized**. Each employer writes their own questions. In a single day the bot might encounter:
+
+| Employer A | Employer B | Employer C |
+|---|---|---|
+| "Years of React experience?" with options `[< 1 year, 1–3, 3–5, 5+]` | "React proficiency?" with options `[Beginner, Intermediate, Advanced, Expert]` | "How long have you worked with frontend frameworks?" with options `[Less than 1 yr, 1–2 yrs, 2–4 yrs, 4+ yrs]` |
+
+These three questions mean the same thing but have completely different option texts. A rule engine would need a hand-written case for every variation. There are thousands of employers — that's not maintainable.
+
+Similarly for open-ended text questions:
+- "Why do you want to work at this company?"
+- "Describe how your background makes you a fit for this role."
+- "What interests you about this position?"
+
+A hardcoded answer to any of these would be obviously generic and identical across every application.
+
+### What the LLM actually solves
+
+| Problem | Without LLM | With LLM |
+|---|---|---|
+| Dropdown options vary per employer | Would need regex for every possible phrasing | LLM reads the actual options and picks the best match against your profile |
+| Open-ended "why this role?" questions | Same canned answer everywhere | LLM reads the job title + company + your projects and writes a tailored response |
+| Unexpected question phrasing | Field left blank or wrong answer selected | LLM understands intent regardless of exact wording |
+| Job relevance — should I even apply? | Apply to everything (wastes applications) | LLM scores 0–100 against your skills; skips low-match jobs |
+
+### The hybrid design and why it matters
+
+The script uses a **deliberate split**:
+
+```
+Stable, factual fields (email, phone, salary, city, notice period)
+  → resolveAnswer() — regex pattern matching, zero API calls, instant
+
+Dynamic fields (dropdowns, radios, open text, job scoring)
+  → LLM — context-aware, handles any phrasing, tailored per job
+```
+
+Doing everything with the LLM would be slower and more expensive. Doing everything deterministically would leave most forms broken or filled with generic copy-paste answers. The hybrid gives you speed on the easy stuff and intelligence where it actually matters.
+
+### Concretely: what breaks without the LLM
+
+- Every dropdown that doesn't exactly match a hardcoded regex → left blank or wrong option selected → application fails validation
+- Every "cover letter" / "why this role" textarea → blank → looks like a bot
+- Job scoring → disabled → applies to every result regardless of fit, burning your daily application limit on irrelevant roles
+
+---
+
 ## Environment Variables
 
 | Variable | Required | Description |

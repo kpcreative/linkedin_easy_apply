@@ -52,6 +52,7 @@ Return ONLY valid JSON matching this exact shape:
   "skills": [],
   "experience": {},
   "yearsOfTotalExperience": 0,
+  "skillExperience": {"SkillName": 0},
   "projects": [{"name":"","description":"","technologies":[]}],
   "certifications": [],
   "relocation": true,
@@ -60,6 +61,7 @@ Return ONLY valid JSON matching this exact shape:
   "noticePeriodDays": 0
 }
 For phoneCountryCode: infer from phone number format or city (e.g. "+91" for India, "+1" for USA). Include country name and code, e.g. "India (+91)".
+For skillExperience: build a {technology: yearsOfExperience} map from the candidate's work history only. Infer years from employment durations. Use 0 for skills listed in the skills section but not used professionally. Do not invent values.
 Leave other fields empty/null if not found. Do not invent information.`;
 
   const raw = await callGroq(system, `Resume:\n${resumeText.slice(0, 6000)}`);

@@ -4,10 +4,21 @@ export async function parseResume(buffer: Buffer, filename: string): Promise<str
   const ext = filename.split('.').pop()?.toLowerCase() ?? '';
 
   if (ext === 'pdf') {
+    // pdf-parse v2 uses a class-based API — PDFParse({ data }) then .getText()
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
-    const data = await pdfParse(buffer);
-    return data.text.trim();
+    const { PDFParse } = require('pdf-parse') as {
+      PDFParse: new (opts: { data: Uint8Array }) => {
+        getText(params?: Record<string, unknown>): Promise<{ text: string }>;
+        destroy(): Promise<void>;
+      };
+    };
+    const parser = new PDFParse({ data: new Uint8Array(buffer) });
+    try {
+      const result = await parser.getText();
+      return result.text.trim();
+    } finally {
+      await parser.destroy();
+    }
   }
 
   if (ext === 'docx' || ext === 'doc') {

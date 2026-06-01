@@ -47,6 +47,8 @@ const CONFIG = {
   keywords:        (userPrefs['keywords'] as string)        || 'Software Engineer',
   location:        (userPrefs['location'] as string)        || 'Bengaluru',
   maxApplications: Number(userPrefs['maxApplications'])     || 5,
+  experienceLevel: (userPrefs['experienceLevel'] as string) || 'fresher',
+  maxExperience:   Number(userPrefs['maxExperience']        ?? 1),
   resumePath:      null as string | null,   // LinkedIn uses your stored profile resume
 
   // All answers come from data/profile.json — no hardcoded personal data
@@ -413,10 +415,13 @@ async function launchBrowser(): Promise<{ context: BrowserContext; cdpConnected:
 // ─── Job list collection ──────────────────────────────────────────────────────
 
 function buildSearchUrl(): string {
+  // f_E: 2=Entry level (fresher), 3=Associate (1-3yr), 4=Mid-Senior (3-5yr+)
+  const expLevelParam = CONFIG.experienceLevel === 'fresher' ? '2' : '3,4';
   const params = new URLSearchParams({
     keywords: CONFIG.keywords,
     location:  CONFIG.location,
     f_AL:      'true',    // Easy Apply filter
+    f_E:       expLevelParam,
     sortBy:    'DD',      // Date descending — freshest jobs first
   });
   return `https://www.linkedin.com/jobs/search/?${params.toString()}`;
@@ -577,9 +582,15 @@ function resolveAnswer(label: string): string | null {
   if (/linkedin.*url|linkedin.*profile|linkedin\.com/i.test(l)) return p('linkedinUrl', CONFIG.answers.linkedinUrl);
   if (/github.*url|github\.com|portfolio.*url|website.*url/i.test(l)) return p('githubUrl', CONFIG.answers.githubUrl);
 
+  // Referral questions — always N/A (no referrer)
+  if (/referred\s+by|referral\s+name|referral\s+code|employee\s+referral|who\s+referred|referrer|refer.*name/i.test(l)) return 'N/A';
+
   // Yes/No fallbacks for common screener questions about location, availability, willingness
   if (/\bjoin.*immediately\b|available.*immediately|immediate.*joiner|immediate.*join/i.test(l)) return 'Yes';
-  if (/\bbanglore\b|\bbangalore\b|\bbengaluru\b.*location|location.*\bbengaluru\b|current.*location.*bang/i.test(l)) return 'Yes';
+  // Dynamic city check — uses the job search location from prefs.json instead of hardcoded city names
+  const _targetCity = CONFIG.location.trim();
+  const _escapedCity = _targetCity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (_escapedCity && new RegExp(`\\b${_escapedCity}\\b`, 'i').test(l)) return 'Yes';
   if (/relocat/i.test(l))                                   return (aiProfile['relocation'] === false) ? 'No' : 'Yes';
   if (/work.*onsite|onsite.*work|in.?office/i.test(l))     return 'Yes';
   // Generic "do you have experience in X" screener → default Yes
@@ -603,8 +614,8 @@ function resolveAnswer(label: string): string | null {
   // Days-to-join numeric (different wording from notice period)
   if (/how\s+much\s+time.*join|time.*you\s+need.*join|no\.\s*of\s*days.*join|join.*in\s*days/i.test(l)) return CONFIG.answers.noticePeriod;
 
-  // "Are you available in Bengaluru / Bangalore for interview"
-  if (/available\s+in\s+(bengaluru|bangalore)/i.test(l)) return 'Yes';
+  // "Are you available in [city] for interview" — uses search location from prefs.json
+  if (_escapedCity && new RegExp(`available\\s+in\\s+${_escapedCity}`, 'i').test(l)) return 'Yes';
 
   // "What is your overall hands-on industry work experience"
   if (/overall.*hands.?on.*experience|industry.*work\s*experience|hands.?on.*industry/i.test(l)) return p('yearsOfTotalExperience', CONFIG.answers.yearsOfExperience).toString();
@@ -633,8 +644,17 @@ function resolveAnswer(label: string): string | null {
   // GDPR / consent to collect/store/process data (Ivanti-style)
   if (/consent\s+to\s+collect|consent\s+to\s+store|consent.*process.*data/i.test(l)) return 'Yes';
 
-  // "How much experience in [technology]?" / "Provide your experience in [X]?" → 0 (fresher)
-  if (/how\s+much\s+experience\s+in|provide\s+your\s+experience\s+in|experience\s+in\s+\w/i.test(l)) return CONFIG.answers.yearsOfExperience;
+  // "How much experience in [technology]?" / "Provide your experience in [X]?" — look up skillExperience, default 0
+  if (/how\s+much\s+experience\s+in|provide\s+your\s+experience\s+in|experience\s+in\s+[\w.]/i.test(l)) {
+    const techMatch = label.match(/experience\s+(?:in|with)\s+([\w.+#\s]+?)(?:\?|$)/i);
+    if (techMatch) {
+      const tech = techMatch[1].trim().toLowerCase();
+      const skillExp = (aiProfile['skillExperience'] as Record<string, number> | undefined) ?? {};
+      const key = Object.keys(skillExp).find(k => k.toLowerCase() === tech);
+      if (key !== undefined) return String(skillExp[key]);
+    }
+    return '0'; // tech not in resume → 0 years
+  }
 
   // "Rate your comm(unication) skills out of 5?" — eTeam uses Yes/No for this
   if (/rate.*comm.*skills|comm.*skills.*rate|communication\s+skills.*out\s+of/i.test(l)) return 'Yes';
@@ -1283,8 +1303,11 @@ async function shouldApply(page: Page, job: JobCard): Promise<boolean> {
 
   // ── Hard skip: seniority / experience level out of range ─────────────────────
   const senioritySkip = /\b(senior|sr\b|lead\s+engineer|tech\s+lead|principal|staff\s+engineer|director|head\s+of\s+engineering|vp\s+of\s+engineering|vice\s+president|manager|architect)\b/;
-  // Match "2+ years", "3 years", "8-10 years", etc. — skip anything requiring 2 or more years (candidate is fresher)
-  const expSkip = /\b([2-9]|[1-9]\d)\+?\s*(?:to\s*\d+\s*)?\s*years?\s*(?:of\s*)?(?:experience|exp|work experience|professional experience)\b/;
+  // Dynamic threshold: skip jobs requiring more years than the user's configured max
+  const skipThreshold = Math.max(CONFIG.maxExperience + 1, 2);
+  const expSkip = new RegExp(
+    `\\b([${skipThreshold}-9]|[1-9]\\d)\\+?\\s*(?:to\\s*\\d+\\s*)?\\s*years?\\s*(?:of\\s*)?(?:experience|exp|work experience|professional experience)\\b`
+  );
 
   // ── Hard skip: specific tech Kartik doesn't have ──────────────────────────────
   const techSkip = /\b(golang|go lang|\brust\b|kotlin\b|swift\b|embedded\s*c\b|vlsi|verilog|vhdl|sap\s*abap|abap\b|salesforce|blockchain|solidity|smart\s*contract|devops.only|site\s*reliability|network\s*engineer|hardware\s*engineer|firmware)\b/;

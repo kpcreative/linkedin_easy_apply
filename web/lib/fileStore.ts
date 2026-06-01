@@ -23,6 +23,7 @@ export interface UserProfile {
   skills: string[];
   experience: Record<string, number>;
   yearsOfTotalExperience: number;
+  skillExperience?: Record<string, number>;
   relocation: boolean;
   requiresSponsorship: boolean;
   workAuthorization: boolean;
@@ -49,6 +50,7 @@ export interface UserPrefs {
   minSalary: number;
   maxSalary: number;
   jobTitles: string[];
+  experienceLevel: 'fresher' | 'experienced';
 }
 
 export interface ApplicationRecord {

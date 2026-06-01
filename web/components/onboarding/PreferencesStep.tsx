@@ -47,13 +47,14 @@ const DEFAULT_PREFS: UserPrefs = {
   location: 'Bengaluru',
   workMode: ['remote', 'hybrid', 'onsite'],
   minExperience: 0,
-  maxExperience: 2,
+  maxExperience: 1,
   maxApplications: 25,
   easyApplyOnly: true,
   requiresSponsorship: false,
   minSalary: 500000,
   maxSalary: 1500000,
   jobTitles: ['Software Engineer', 'Frontend Developer', 'Full Stack Developer'],
+  experienceLevel: 'fresher',
 };
 
 export default function PreferencesStep({ onBack }: PreferencesStepProps) {
@@ -128,22 +129,42 @@ export default function PreferencesStep({ onBack }: PreferencesStepProps) {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Min Experience (yrs)</label>
-            <input type="number" min={0} max={20} value={p.minExperience} onChange={e => set('minExperience', +e.target.value)}
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-indigo-500" />
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">Experience Level</label>
+          <div className="flex gap-4 mb-3">
+            {(['fresher', 'experienced'] as const).map(level => (
+              <label key={level} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="experienceLevel"
+                  value={level}
+                  checked={p.experienceLevel === level}
+                  onChange={() => {
+                    set('experienceLevel', level);
+                    if (level === 'fresher') { set('minExperience', 0); set('maxExperience', 1); }
+                  }}
+                  className="w-4 h-4 accent-indigo-500"
+                />
+                <span className="text-gray-300 text-sm capitalize">{level}</span>
+              </label>
+            ))}
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Max Experience (yrs)</label>
-            <input type="number" min={0} max={20} value={p.maxExperience} onChange={e => set('maxExperience', +e.target.value)}
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-indigo-500" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-1">Max Applications</label>
-            <input type="number" min={1} max={200} value={p.maxApplications} onChange={e => set('maxApplications', +e.target.value)}
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-indigo-500" />
-          </div>
+          {p.experienceLevel === 'experienced' && (
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Min Years</label>
+                <input type="number" min={1} max={20} value={p.minExperience}
+                  onChange={e => set('minExperience', +e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1">Max Years</label>
+                <input type="number" min={1} max={20} value={p.maxExperience}
+                  onChange={e => set('maxExperience', +e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-indigo-500" />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -157,6 +178,12 @@ export default function PreferencesStep({ onBack }: PreferencesStepProps) {
             <input type="number" min={0} value={p.maxSalary} onChange={e => set('maxSalary', +e.target.value)}
               className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-indigo-500" />
           </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-1">Max Applications</label>
+          <input type="number" min={1} max={200} value={p.maxApplications} onChange={e => set('maxApplications', +e.target.value)}
+            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-indigo-500" />
         </div>
 
         <div className="flex items-center gap-6">

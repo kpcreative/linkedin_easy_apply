@@ -86,23 +86,43 @@ export async function askLLM(request: LLMRequest): Promise<LLMResponse | null> {
     candidateProfile: request.profile,
   });
 
+  // ── Flow log: what Playwright is sending to the LLM ──────────────────────
+  const optionsSummary = request.options?.length
+    ? ` | options: [${request.options.map(o => `"${o}"`).join(', ')}]`
+    : '';
+  console.log(`\n┌─[LLM↑ SEND] ───────────────────────────────────────────────`);
+  console.log(`│  question  : "${request.question}"`);
+  console.log(`│  fieldType : ${request.fieldType}${optionsSummary}`);
+  console.log(`└────────────────────────────────────────────────────────────`);
+
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      console.log(`[AI] Sending request (attempt ${attempt}): "${request.question.slice(0, 70)}"`);
       const raw = await callGroq(userPrompt);
       const parsed = JSON.parse(raw) as Record<string, unknown>;
 
       if (!validate(parsed, request)) {
-        console.warn(`[AI] Validation failed on attempt ${attempt} for: "${request.question.slice(0, 60)}"`);
+        console.warn(`│  [LLM↓ ✗] attempt ${attempt}/2 — invalid response: ${JSON.stringify(parsed)}`);
         if (attempt < 2) continue;
+        console.warn(`└─[LLM↓ FAIL] no valid answer after 2 attempts\n`);
         return null;
       }
 
-      console.log(`[AI] Response received: ${JSON.stringify(parsed)}`);
+      // ── Flow log: what the LLM returned and what Playwright will do ────
+      const action = 'selectedOption' in parsed
+        ? `select  → "${parsed['selectedOption']}"`
+        : 'answer' in parsed
+          ? `fill    → "${String(parsed['answer']).slice(0, 80)}"`
+          : `check   → ${parsed['checked']}`;
+      console.log(`│  [LLM↓ ✓] ${JSON.stringify(parsed)}`);
+      console.log(`└─[ACTION]   ${action}\n`);
+
       return parsed as unknown as LLMResponse;
     } catch (err) {
-      console.warn(`[AI] Error on attempt ${attempt}: ${err}`);
-      if (attempt >= 2) return null;
+      console.warn(`│  [LLM↓ ✗] attempt ${attempt}/2 — error: ${err}`);
+      if (attempt >= 2) {
+        console.warn(`└─[LLM↓ FAIL] ${err}\n`);
+        return null;
+      }
     }
   }
   return null;

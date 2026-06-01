@@ -131,6 +131,27 @@ export default function ProfileStep({ profile, onNext, onBack }: ProfileStepProp
           </div>
         </div>
 
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Current CTC (₹)</label>
+            <input
+              type="number" min={0}
+              value={p.currentCTC ?? '1000000'}
+              onChange={e => set('currentCTC', e.target.value)}
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-1">Expected / Desired Salary (₹)</label>
+            <input
+              type="number" min={0}
+              value={p.desiredSalary ?? '1800000'}
+              onChange={e => set('desiredSalary', e.target.value)}
+              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2 text-gray-200 focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+        </div>
+
         <div className="flex items-center gap-6">
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={p.relocation ?? true} onChange={e => set('relocation', e.target.checked)} className="w-4 h-4 accent-indigo-500" />
